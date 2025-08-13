@@ -1,29 +1,48 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/useColorScheme';
+import { Tabs, Stack } from 'expo-router';
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
-  const [loaded] = useFonts({
-    SpaceMono: require('../assets/fonts/SpaceMono-Regular.ttf'),
-  });
-
-  if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
-  }
-
+export default function Layout() {
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    <Stack
+      screenOptions={{
+        headerShown: false, // Disable headers for all stack screens
+      }}
+    >
+      <Stack.Screen name="splash" />
+      <Stack.Screen name="forgot-password" />
+      <Stack.Screen name="verify-otp" />
+      <Stack.Screen name="terms" />
+      <Stack.Screen name="privacy" />
+      <Stack.Screen name="(tabs)" />
+    </Stack>
+  );
+}
+
+export function TabsLayout() {
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false, // Disable headers for all tab screens
+      }}
+    >
+      <Tabs.Screen
+        name="dashboard"
+        options={{
+          href: '/', // Make dashboard the default tab
+        }}
+      />
+      <Tabs.Screen
+        name="login"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+      <Tabs.Screen
+        name="signup"
+        options={{
+          href: null, // Hide from tab bar
+        }}
+      />
+    </Tabs>
   );
 }
