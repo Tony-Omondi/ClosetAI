@@ -23,12 +23,12 @@ const SplashScreen: React.FC = () => {
         router.replace('/(tabs)/dashboard');
       } else {
         // User is not logged in, navigate to login
-        router.replace('/(tabs)/login');
+        router.replace('/login');
       }
     } catch (error) {
       console.error('Splash screen error:', error);
       // Fallback to login if error occurs
-      router.replace('/(tabs)/login');
+      router.replace('/login');
     }
   }, [router]);
 

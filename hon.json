@@ -1,0 +1,22 @@
+app/
+├── (tabs)/
+│   ├── dashboard.tsx
+│   ├── profile.tsx
+│   ├── events.tsx
+│   ├── closet.tsx
+│   ├── recommendations.tsx
+├── splash.tsx
+├── login.tsx
+├── signup.tsx
+├── forgot-password.tsx
+├── verify-otp.tsx
+├── reset-password.tsx
+├── google-callback.tsx
+├── terms.tsx
+├── privacy.tsx
+├── _sitemap.tsx
+├── +not-found.tsx
+├── _layout.tsx
+├── assets/
+│   ├── images/
+│       ├── closetai-logo.jpg

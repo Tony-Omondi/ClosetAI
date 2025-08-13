@@ -1,48 +1,19 @@
-
-import { Tabs, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 
 export default function Layout() {
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false, // Disable headers for all stack screens
-      }}
-    >
+    <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="splash" />
+      <Stack.Screen name="login" />
+      <Stack.Screen name="signup" />
       <Stack.Screen name="forgot-password" />
       <Stack.Screen name="verify-otp" />
-      <Stack.Screen name="terms" />
-      <Stack.Screen name="privacy" />
-      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="reset-password" />
+      <Stack.Screen name="google-callback" />
+      <Stack.Screen name="terms" options={{ headerShown: true, title: 'Terms' }} />
+      <Stack.Screen name="privacy" options={{ headerShown: true, title: 'Privacy' }} />
+      <Stack.Screen name="+not-found" />
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     </Stack>
-  );
-}
-
-export function TabsLayout() {
-  return (
-    <Tabs
-      screenOptions={{
-        headerShown: false, // Disable headers for all tab screens
-      }}
-    >
-      <Tabs.Screen
-        name="dashboard"
-        options={{
-          href: '/', // Make dashboard the default tab
-        }}
-      />
-      <Tabs.Screen
-        name="login"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-      <Tabs.Screen
-        name="signup"
-        options={{
-          href: null, // Hide from tab bar
-        }}
-      />
-    </Tabs>
   );
 }

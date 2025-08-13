@@ -64,7 +64,7 @@ const Signup: React.FC = () => {
 
     try {
       setIsLoading(true);
-      const response = await axios.post('http://localhost:8000/api/auth/signup/', {
+      const response = await axios.post('192.168.88.68:8000/api/auth/signup/', {
         email,
         password,
         profile: { full_name: fullName, age: parseInt(age), gender, location }
@@ -78,7 +78,7 @@ const Signup: React.FC = () => {
   };
 
   const handleGoogleLogin = () => {
-    Linking.openURL('http://localhost:8000/accounts/google/login/');
+    Linking.openURL('192.168.88.68:8000/accounts/google/login/');
   };
 
   return (
@@ -94,7 +94,7 @@ const Signup: React.FC = () => {
           {/* Logo */}
           <View style={styles.logoContainer}>
             <Image 
-              source={require('../../assets/images/closetai-logo.jpg')} 
+              source={require('../assets/images/closetai-logo.jpg')} 
               style={styles.logo}
               resizeMode="contain"
             />
