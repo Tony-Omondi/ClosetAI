@@ -29,7 +29,7 @@ export default function VerifyOTP() {
 
     try {
       setIsLoading(true);
-      const response = await fetch('http://192.168.88.68:8000/api/auth/verify-otp/', {
+      const response = await fetch('http://192.168.88.66:8000/api/auth/verify-otp/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user_id, code: otp, purpose }),

@@ -27,7 +27,7 @@ export default function Login() {
 
     try {
       setIsLoading(true);
-      const response = await fetch('http://192.168.88.68:8000/api/auth/login/', {
+      const response = await fetch('http://192.168.88.66:8000/api/auth/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -47,7 +47,7 @@ export default function Login() {
   };
 
   const handleGoogleLogin = () => {
-    Linking.openURL('http://192.168.88.68:8000/accounts/google/login/');
+    Linking.openURL('http://192.168.88.66:8000/accounts/google/login/');
   };
 
   return (

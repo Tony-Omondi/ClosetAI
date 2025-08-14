@@ -20,7 +20,7 @@ export default function PasswordResetRequest() {
 
     try {
       setIsLoading(true);
-      const response = await fetch('http://192.168.88.68:8000/api/auth/password-reset/', {
+      const response = await fetch('http://192.168.88.66:8000/api/auth/password-reset/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),

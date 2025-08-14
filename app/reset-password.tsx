@@ -1,27 +1,42 @@
-import { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { useTailwind } from 'nativewind';
 
-export default function ResetPassword() {
-  const tw = useTailwind();
+import { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Image,
+  StyleSheet,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const API_URL = 'http://192.168.88.66:8000/api/auth/password-reset-confirm/';
+
+const ResetPassword = () => {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+  const { user_id } = params;
+
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
-  const router = useRouter();
-  const { user_id } = useLocalSearchParams();
 
   useEffect(() => {
+    if (params?.error) {
+      setError(params.error);
+    }
     if (!user_id) {
       setError('Invalid request. Please try again.');
       setTimeout(() => router.push('/login'), 3000);
     }
-  }, [user_id, router]);
+  }, [user_id, params, router]);
 
-  const checkPasswordStrength = (password: string) => {
+  const checkPasswordStrength = (password) => {
     let strength = 0;
     if (password.length >= 8) strength++;
     if (password.match(/[A-Z]/)) strength++;
@@ -32,12 +47,18 @@ export default function ResetPassword() {
 
   const getPasswordStrengthColor = () => {
     switch (passwordStrength) {
-      case 0: return 'bg-gray-200';
-      case 1: return 'bg-red-400';
-      case 2: return 'bg-yellow-400';
-      case 3: return 'bg-blue-400';
-      case 4: return 'bg-green-500';
-      default: return 'bg-gray-200';
+      case 0:
+        return '#e5e7eb';
+      case 1:
+        return '#f87171';
+      case 2:
+        return '#fbbf24';
+      case 3:
+        return '#60a5fa';
+      case 4:
+        return '#10b981';
+      default:
+        return '#e5e7eb';
     }
   };
 
@@ -62,20 +83,30 @@ export default function ResetPassword() {
 
     try {
       setIsLoading(true);
-      const response = await fetch('http://192.168.88.68:8000/api/auth/password-reset-confirm/', {
+      const response = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user_id, new_password: newPassword, confirm_password: confirmPassword }),
+        body: JSON.stringify({
+          user_id,
+          new_password: newPassword,
+          confirm_password: confirmPassword,
+        }),
       });
       const data = await response.json();
       if (!response.ok) {
         throw new Error(data.errors || 'Failed to reset password. Please try again.');
       }
+      if (data.token) {
+        await AsyncStorage.setItem('token', data.token);
+      }
+      if (data.user) {
+        await AsyncStorage.setItem('user', JSON.stringify(data.user));
+      }
       setMessage(data.message || 'Password has been reset successfully!');
       setNewPassword('');
       setConfirmPassword('');
       setTimeout(() => router.push('/login'), 2000);
-    } catch (err: any) {
+    } catch (err) {
       setError(err.message || 'Failed to reset password. Please try again.');
     } finally {
       setIsLoading(false);
@@ -83,98 +114,240 @@ export default function ResetPassword() {
   };
 
   return (
-    <View style={tw('min-h-screen bg-gray-50 flex items-center justify-center p-4')}>
-      <View style={tw('bg-white p-6 md:p-8 rounded-2xl shadow-lg w-full max-w-md')}>
-        <View style={tw('flex justify-center mb-6')}>
+    <View style={styles.container}>
+      <View style={styles.card}>
+        <View style={styles.logoContainer}>
           <Image
-            source={require('./assets/images/closetai-logo.jpg')}
-            style={tw('h-12 md:h-14 w-auto')}
+            source={require('../assets/images/closetai-logo.jpg')}
+            style={styles.logo}
             resizeMode="contain"
           />
         </View>
-        <Text style={tw('text-2xl md:text-3xl font-bold text-gray-800 text-center mb-2')}>
-          Create New Password
-        </Text>
-        <Text style={tw('text-gray-600 text-center mb-6')}>
-          Enter and confirm your new password
-        </Text>
+        <Text style={styles.title}>Create New Password</Text>
+        <Text style={styles.subtitle}>Enter and confirm your new password</Text>
+
         {message && (
-          <View style={tw('mb-6 p-4 bg-green-50 text-green-700 rounded-lg border border-green-200 flex items-center')}>
-            <Text style={tw('text-sm')}>{message}</Text>
+          <View style={styles.successContainer}>
+            <Text style={styles.successText}>{message}</Text>
           </View>
         )}
+
         {error && (
-          <View style={tw('mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center')}>
-            <Text style={tw('text-sm')}>{error}</Text>
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{error}</Text>
           </View>
         )}
-        <View style={tw('space-y-4')}>
+
+        <View style={styles.form}>
           <View>
-            <Text style={tw('block text-sm font-medium text-gray-700 mb-1')}>
-              New Password
-            </Text>
+            <Text style={styles.label}>New Password</Text>
             <TextInput
-              style={tw('w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500')}
-              placeholder="Enter new password"
+              style={styles.input}
               value={newPassword}
               onChangeText={(text) => {
                 setNewPassword(text);
                 checkPasswordStrength(text);
               }}
+              placeholder="Enter new password"
               secureTextEntry
-              minLength={8}
+              autoCapitalize="none"
+              accessibilityLabel="New password input"
             />
             {newPassword && (
-              <View style={tw('mt-2')}>
-                <View style={tw('w-full bg-gray-200 rounded-full h-2')}>
+              <View style={styles.passwordStrengthContainer}>
+                <View style={styles.strengthBarBackground}>
                   <View
-                    style={[tw(`h-2 rounded-full ${getPasswordStrengthColor()}`), { width: `${passwordStrength * 25}%` }]}
+                    style={[
+                      styles.strengthBar,
+                      {
+                        width: `${passwordStrength * 25}%`,
+                        backgroundColor: getPasswordStrengthColor(),
+                      },
+                    ]}
                   />
                 </View>
-                <Text style={tw('text-xs text-gray-500 mt-1')}>
+                <Text style={styles.strengthText}>
                   Password strength: {['Very weak', 'Weak', 'Moderate', 'Strong', 'Very strong'][passwordStrength]}
                 </Text>
               </View>
             )}
           </View>
+
           <View>
-            <Text style={tw('block text-sm font-medium text-gray-700 mb-1')}>
-              Confirm Password
-            </Text>
+            <Text style={styles.label}>Confirm Password</Text>
             <TextInput
-              style={tw('w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500')}
-              placeholder="Confirm new password"
+              style={styles.input}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
+              placeholder="Confirm new password"
               secureTextEntry
+              autoCapitalize="none"
+              accessibilityLabel="Confirm password input"
             />
           </View>
+
           <TouchableOpacity
             onPress={handleSubmit}
             disabled={isLoading}
-            style={tw(`w-full py-3 px-4 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-lg flex items-center justify-center ${isLoading ? 'opacity-75' : ''}`)}
+            style={[styles.button, isLoading && styles.buttonDisabled]}
+            accessibilityLabel="Reset password button"
           >
             {isLoading ? (
-              <View style={tw('flex-row items-center')}>
-                <ActivityIndicator size="small" color="white" style={tw('mr-3')} />
-                <Text style={tw('text-white font-medium')}>Resetting...</Text>
+              <View style={styles.buttonContent}>
+                <ActivityIndicator size="small" color="#fff" style={styles.spinner} />
+                <Text style={styles.buttonText}>Resetting...</Text>
               </View>
             ) : (
-              <Text style={tw('text-white font-medium')}>Reset Password</Text>
+              <Text style={styles.buttonText}>Reset Password</Text>
             )}
           </TouchableOpacity>
         </View>
-        <View style={tw('mt-6 text-center')}>
-          <TouchableOpacity
-            onPress={() => router.push('/login')}
-            style={tw('inline-flex items-center')}
-          >
-            <Text style={tw('text-indigo-600 hover:text-indigo-800 font-medium text-sm')}>
-              Back to Login
-            </Text>
+
+        <View style={styles.footer}>
+          <TouchableOpacity onPress={() => router.push('/login')}>
+            <Text style={styles.link}>Back to Login</Text>
           </TouchableOpacity>
         </View>
       </View>
     </View>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#f9fafb',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  card: {
+    backgroundColor: '#fff',
+    padding: 24,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5,
+    width: '100%',
+    maxWidth: 400,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  logo: {
+    height: 56,
+    width: 'auto',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#4b5563',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  successContainer: {
+    padding: 12,
+    backgroundColor: '#ecfdf5',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  successText: {
+    color: '#065f46',
+    fontSize: 14,
+  },
+  errorContainer: {
+    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+    marginBottom: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  errorText: {
+    color: '#b91c1c',
+    fontSize: 14,
+  },
+  form: {
+    gap: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  input: {
+    width: '100%',
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    fontSize: 16,
+  },
+  passwordStrengthContainer: {
+    marginTop: 8,
+  },
+  strengthBarBackground: {
+    width: '100%',
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    height: 4,
+  },
+  strengthBar: {
+    height: 4,
+    borderRadius: 4,
+  },
+  strengthText: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  button: {
+    width: '100%',
+    padding: 12,
+    backgroundColor: '#4f46e5',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonDisabled: {
+    opacity: 0.75,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  spinner: {
+    marginRight: 12,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '500',
+    fontSize: 16,
+  },
+  footer: {
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  link: {
+    fontSize: 14,
+    color: '#4f46e5',
+  },
+});
+
+export default ResetPassword;

@@ -64,7 +64,7 @@ const Signup: React.FC = () => {
 
     try {
       setIsLoading(true);
-      const response = await axios.post('192.168.88.68:8000/api/auth/signup/', {
+      const response = await axios.post('http://192.168.88.66:8000/api/auth/signup/', {
         email,
         password,
         profile: { full_name: fullName, age: parseInt(age), gender, location }
@@ -78,7 +78,7 @@ const Signup: React.FC = () => {
   };
 
   const handleGoogleLogin = () => {
-    Linking.openURL('192.168.88.68:8000/accounts/google/login/');
+    Linking.openURL('http://192.168.88.66:8000/accounts/google/login/');
   };
 
   return (
