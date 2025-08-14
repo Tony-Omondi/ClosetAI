@@ -1,5 +1,4 @@
-
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -26,28 +25,43 @@ const SplashScreen = () => {
   const gradientAnim = useRef(new Animated.Value(0)).current;
   const lottieRef = useRef(null);
   const router = useRouter();
+  const [lottieFinished, setLottieFinished] = useState(false);
+  const isEffectRunning = useRef(false); // Prevent duplicate useEffect runs
+  const hasNavigated = useRef(false); // Prevent duplicate navigation
+  const [mountCount, setMountCount] = useState(0); // Track mounts
 
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'PlusJakartaSans-Bold': require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
-    'PlusJakartaSans-Medium': require('../assets/fonts/PlusJakartaSans-Bold.ttf'),
+    'PlusJakartaSans-Medium': require('../assets/fonts/PlusJakartaSans-Medium.ttf'),
   });
 
+  // Log component mount
   useEffect(() => {
-    if (!fontsLoaded) return;
+    setMountCount((prev) => prev + 1);
+    console.log('SplashScreen mounted:', Date.now(), 'Mount count:', mountCount + 1);
+    return () => {
+      console.log('SplashScreen unmounted:', Date.now());
+    };
+  }, []);
+
+  useEffect(() => {
+    console.log('useEffect triggered:', Date.now(), 'Fonts loaded:', fontsLoaded, 'Font error:', fontError);
+    if (!fontsLoaded && !fontError) return;
+    if (isEffectRunning.current || hasNavigated.current) return; // Prevent duplicate runs
+    isEffectRunning.current = true;
 
     lottieRef.current?.play();
 
-    // Animation sequence
-    Animated.parallel([
+    const animationController = Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: 3500,
         easing: Easing.out(Easing.exp),
         useNativeDriver: true,
       }),
       Animated.timing(scaleAnim, {
         toValue: 1,
-        duration: 1000,
+        duration: 3500,
         easing: Easing.out(Easing.back(1.2)),
         useNativeDriver: true,
       }),
@@ -63,40 +77,80 @@ const SplashScreen = () => {
             duration: 800,
             useNativeDriver: true,
           }),
-        ])
+        ]),
+        { iterations: 3 } // ~4.8s total
       ),
-      Animated.loop(
-        Animated.timing(gradientAnim, {
-          toValue: 1,
-          duration: 3500,
-          easing: Easing.linear,
-          useNativeDriver: false,
-        })
-      ),
-    ]).start();
+      Animated.timing(gradientAnim, {
+        toValue: 1,
+        duration: 3500,
+        easing: Easing.linear,
+        useNativeDriver: false,
+      }),
+    ]);
+
+    animationController.start(() => {
+      console.log('Animations completed:', Date.now());
+    });
 
     const checkLogin = async () => {
+      if (hasNavigated.current) return; // Prevent duplicate navigation
+      hasNavigated.current = true;
+
       try {
+        const startTime = Date.now();
+        console.log('Checking token:', Date.now());
         const token = await AsyncStorage.getItem('token');
+        const elapsedTime = Date.now() - startTime;
+        const minimumDuration = 4500;
+        const remainingTime = minimumDuration - elapsedTime;
+
+        if (remainingTime > 0) {
+          console.log('Waiting for remaining time:', remainingTime);
+          await new Promise(resolve => setTimeout(resolve, remainingTime));
+        }
+
+        if (!lottieFinished) {
+          console.log('Waiting for Lottie to finish:', Date.now());
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        console.log('Hiding splash screen:', Date.now());
         await ExpoSplashScreen.hideAsync();
+        console.log('Navigating to:', token ? '/(tabs)/dashboard' : '/login', Date.now());
         router.replace(token ? '/(tabs)/dashboard' : '/login');
       } catch (error) {
         console.error('Splash screen auth check error:', error);
+        const startTime = Date.now();
+        const elapsedTime = Date.now() - startTime;
+        const minimumDuration = 4500;
+        const remainingTime = minimumDuration - elapsedTime;
+
+        if (remainingTime > 0) {
+          await new Promise(resolve => setTimeout(resolve, remainingTime));
+        }
+
+        console.log('Hiding splash screen (error):', Date.now());
         await ExpoSplashScreen.hideAsync();
+        console.log('Navigating to /login (error):', Date.now());
         router.replace('/login');
       }
     };
 
-    const timeout = setTimeout(checkLogin, 3000);
-    return () => clearTimeout(timeout);
-  }, [fadeAnim, scaleAnim, pulseAnim, gradientAnim, fontsLoaded, router]);
+    const timeout = setTimeout(checkLogin, 4500);
+    return () => {
+      console.log('Cleaning up useEffect:', Date.now());
+      clearTimeout(timeout);
+      animationController.stop();
+      isEffectRunning.current = false;
+    };
+  }, [fontsLoaded, fontError, lottieFinished]);
 
   const translateX = gradientAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [-400, 400],
   });
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded && !fontError) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#4F46E5" />
@@ -126,8 +180,16 @@ const SplashScreen = () => {
             ref={lottieRef}
             source={require('../assets/animations/closetai-animation.json')}
             style={styles.lottieBackground}
-            loop
+            loop={false}
             autoPlay
+            onAnimationFinish={() => {
+              console.log('Lottie animation finished:', Date.now());
+              setLottieFinished(true);
+            }}
+            onError={(error) => {
+              console.error('Lottie animation error:', error);
+              setLottieFinished(true);
+            }}
           />
         </View>
 
@@ -187,7 +249,7 @@ const styles = StyleSheet.create({
     right: -150,
   },
   circleMedium: {
-    position: 'absolute',
+  position: 'absolute',
     width: 400,
     height: 400,
     borderRadius: 200,
