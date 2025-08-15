@@ -19,8 +19,6 @@ import * as ImagePicker from 'expo-image-picker';
 import { Picker } from '@react-native-picker/picker';
 import { Feather, AntDesign, MaterialIcons, Ionicons } from '@expo/vector-icons';
 
-const BASE_URL = 'http://192.168.88.66:8000';
-
 const Profile = () => {
   const router = useRouter();
   const [profile, setProfile] = useState(null);
@@ -45,13 +43,19 @@ const Profile = () => {
           router.replace('/login');
           return;
         }
-        
+
         setIsLoading(true);
-        const response = await fetch(`${BASE_URL}/api/auth/profile/`, {
-          headers: { Authorization: `Token ${token}` },
+        const response = await fetch('http://192.168.88.66:8000/api/auth/profile/', {
+          headers: {
+            Authorization: `Token ${token}`,
+            'Accept': 'application/json',
+          },
         });
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile');
+        }
         const data = await response.json();
-        
+
         setProfile(data);
         setFormData({
           full_name: data.profile.full_name || '',
@@ -60,9 +64,6 @@ const Profile = () => {
           location: data.profile.location || '',
           profile_picture: null,
         });
-
-        // For React Native, you might want to use a different geolocation approach
-        // like expo-location instead of the browser's navigator.geolocation
       } catch (err) {
         setError('Failed to load profile. Please try again.');
       } finally {
@@ -70,7 +71,7 @@ const Profile = () => {
       }
     };
     fetchProfile();
-  }, []);
+  }, [router]);
 
   const handleInputChange = (name, value) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -113,7 +114,7 @@ const Profile = () => {
         });
       }
 
-      const response = await fetch(`${BASE_URL}/api/auth/profile/`, {
+      const response = await fetch('http://192.168.88.66:8000/api/auth/profile/', {
         method: 'PATCH',
         headers: {
           Authorization: `Token ${token}`,
@@ -137,18 +138,34 @@ const Profile = () => {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('token');
-    router.replace('/login');
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        await fetch('http://192.168.88.66:8000/api/auth/logout/', {
+          method: 'POST',
+          headers: {
+            Authorization: `Token ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+      }
+      await AsyncStorage.removeItem('token');
+      await AsyncStorage.removeItem('user');
+      router.replace('/login');
+    } catch (err) {
+      console.error('Logout failed:', err);
+      router.replace('/login');
+    }
   };
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const profilePictureUrl = profile?.profile?.profile_picture 
-    ? profile.profile.profile_picture.startsWith('http') 
-      ? profile.profile.profile_picture 
-      : `${BASE_URL}${profile.profile.profile_picture}`
+  const profilePictureUrl = profile?.profile?.profile_picture
+    ? profile.profile.profile_picture.startsWith('http')
+      ? profile.profile.profile_picture
+      : `http://192.168.88.66:8000${profile.profile.profile_picture}`
     : null;
 
   if (isLoading) {
@@ -162,15 +179,13 @@ const Profile = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Mobile Sidebar Toggle */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.sidebarToggle}
         onPress={toggleSidebar}
       >
         <Feather name={isSidebarOpen ? 'x' : 'menu'} size={24} color="black" />
       </TouchableOpacity>
 
-      {/* Sidebar */}
       <Modal
         animationType="slide"
         transparent={false}
@@ -179,18 +194,16 @@ const Profile = () => {
       >
         <View style={styles.sidebar}>
           <View style={styles.sidebarContent}>
-            {/* Logo */}
             <View style={styles.logoContainer}>
-              <Image 
+              <Image
                 source={require('../../assets/images/closetai-logo.jpg')}
                 style={styles.logo}
               />
             </View>
 
-            {/* User Profile */}
             <TouchableOpacity style={styles.profileContainer}>
               {profilePictureUrl ? (
-                <Image 
+                <Image
                   source={{ uri: profilePictureUrl }}
                   style={styles.profileImage}
                 />
@@ -209,9 +222,8 @@ const Profile = () => {
               </View>
             </TouchableOpacity>
 
-            {/* Navigation */}
             <View style={styles.navContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.navItem}
                 onPress={() => {
                   router.push('/dashboard');
@@ -222,7 +234,7 @@ const Profile = () => {
                 <Text style={styles.navText}>Dashboard</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.navItem}
                 onPress={() => {
                   router.push('/closet');
@@ -233,7 +245,7 @@ const Profile = () => {
                 <Text style={styles.navText}>My Closet</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.navItem}
                 onPress={() => {
                   router.push('/events');
@@ -247,12 +259,18 @@ const Profile = () => {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.navItem}>
+              <TouchableOpacity
+                style={styles.navItem}
+                onPress={() => {
+                  router.push('/recommendations');
+                  toggleSidebar();
+                }}
+              >
                 <Feather name="star" size={20} color="#6b7280" />
                 <Text style={styles.navText}>Recommendations</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.navItem, styles.activeNavItem]}
                 onPress={toggleSidebar}
               >
@@ -261,7 +279,6 @@ const Profile = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Logout */}
             <TouchableOpacity
               style={styles.logoutButton}
               onPress={handleLogout}
@@ -273,9 +290,7 @@ const Profile = () => {
         </View>
       </Modal>
 
-      {/* Main Content */}
       <ScrollView style={styles.mainContent}>
-        {/* Profile Header */}
         <View style={styles.profileHeader}>
           <View style={styles.profileHeaderContent}>
             <View style={styles.profileImageContainer}>
@@ -291,7 +306,7 @@ const Profile = () => {
                   </Text>
                 </View>
               )}
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.editPhotoButton}
                 onPress={pickImage}
               >
@@ -312,7 +327,6 @@ const Profile = () => {
           </View>
         </View>
 
-        {/* Profile Form */}
         <View style={styles.formContainer}>
           {message && (
             <View style={styles.successContainer}>

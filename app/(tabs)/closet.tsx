@@ -20,8 +20,6 @@ import { Picker } from '@react-native-picker/picker';
 import * as ImagePicker from 'expo-image-picker';
 import { AntDesign, MaterialIcons, Feather, Ionicons } from '@expo/vector-icons';
 
-const BASE_URL = 'http://192.168.88.66:8000';
-
 const MyCloset = () => {
   const router = useRouter();
   const [items, setItems] = useState([]);
@@ -77,9 +75,15 @@ const MyCloset = () => {
           router.replace('/login');
           return;
         }
-        const response = await fetch(`${BASE_URL}/api/auth/profile/`, {
-          headers: { Authorization: `Token ${token}` },
+        const response = await fetch('http://192.168.88.66:8000/api/auth/profile/', {
+          headers: {
+            Authorization: `Token ${token}`,
+            'Accept': 'application/json',
+          },
         });
+        if (!response.ok) {
+          throw new Error('Failed to fetch profile');
+        }
         const data = await response.json();
         setProfile(data);
       } catch (err) {
@@ -89,7 +93,7 @@ const MyCloset = () => {
 
     fetchProfile();
     fetchClosetItems();
-  }, []);
+  }, [router]);
 
   const fetchClosetItems = async () => {
     setIsLoading(true);
@@ -98,11 +102,15 @@ const MyCloset = () => {
       if (!token) {
         throw new Error('No token found. Please log in.');
       }
-      const response = await fetch(`${BASE_URL}/api/auth/closet/`, {
+      const response = await fetch('http://192.168.88.66:8000/api/auth/closet/', {
         headers: {
           Authorization: `Token ${token}`,
+          'Accept': 'application/json',
         },
       });
+      if (!response.ok) {
+        throw new Error('Failed to fetch closet items');
+      }
       const data = await response.json();
       setItems(data.items);
       setGrouped(data.grouped);
@@ -154,8 +162,8 @@ const MyCloset = () => {
       if (!token) {
         throw new Error('No token found. Please log in.');
       }
-      
-      const response = await fetch(`${BASE_URL}/api/auth/closet/`, {
+
+      const response = await fetch('http://192.168.88.66:8000/api/auth/closet/', {
         method: 'POST',
         headers: {
           Authorization: `Token ${token}`,
@@ -191,12 +199,16 @@ const MyCloset = () => {
               if (!token) {
                 throw new Error('No token found. Please log in.');
               }
-              await fetch(`${BASE_URL}/api/auth/closet/${id}/`, {
+              const response = await fetch(`http://192.168.88.66:8000/api/auth/closet/${id}/`, {
                 method: 'DELETE',
                 headers: {
                   Authorization: `Token ${token}`,
+                  'Accept': 'application/json',
                 },
               });
+              if (!response.ok) {
+                throw new Error('Failed to delete item');
+              }
               fetchClosetItems();
             } catch (err) {
               setError(err.message || 'Failed to delete item. Please try again.');
@@ -208,18 +220,33 @@ const MyCloset = () => {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem('token');
-    router.replace('/login');
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (token) {
+        await fetch('http://192.168.88.66:8000/api/auth/logout/', {
+          method: 'POST',
+          headers: {
+            Authorization: `Token ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+      }
+      await AsyncStorage.removeItem('token');
+      router.replace('/login');
+    } catch (err) {
+      console.error('Logout failed:', err);
+      router.replace('/login');
+    }
   };
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  const profilePictureUrl = profile?.profile?.profile_picture 
-    ? profile.profile.profile_picture.startsWith('http') 
-      ? profile.profile.profile_picture 
-      : `${BASE_URL}${profile.profile.profile_picture}`
+  const profilePictureUrl = profile?.profile?.profile_picture
+    ? profile.profile.profile_picture.startsWith('http')
+      ? profile.profile.profile_picture
+      : `http://192.168.88.66:8000${profile.profile.profile_picture}`
     : null;
 
   const itemsByCategory = {};
@@ -233,15 +260,13 @@ const MyCloset = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Mobile Sidebar Toggle */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.sidebarToggle}
         onPress={toggleSidebar}
       >
         <Feather name={isSidebarOpen ? 'x' : 'menu'} size={24} color="black" />
       </TouchableOpacity>
 
-      {/* Sidebar */}
       <Modal
         animationType="slide"
         transparent={false}
@@ -250,18 +275,16 @@ const MyCloset = () => {
       >
         <View style={styles.sidebar}>
           <View style={styles.sidebarContent}>
-            {/* Logo */}
             <View style={styles.logoContainer}>
-              <Image 
+              <Image
                 source={require('../../assets/images/closetai-logo.jpg')}
                 style={styles.logo}
               />
             </View>
 
-            {/* User Profile */}
             <TouchableOpacity style={styles.profileContainer}>
               {profilePictureUrl ? (
-                <Image 
+                <Image
                   source={{ uri: profilePictureUrl }}
                   style={styles.profileImage}
                 />
@@ -280,9 +303,8 @@ const MyCloset = () => {
               </View>
             </TouchableOpacity>
 
-            {/* Navigation */}
             <View style={styles.navContainer}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.navItem}
                 onPress={() => {
                   router.push('/dashboard');
@@ -293,7 +315,7 @@ const MyCloset = () => {
                 <Text style={styles.navText}>Dashboard</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.navItem, styles.activeNavItem]}
                 onPress={toggleSidebar}
               >
@@ -301,7 +323,7 @@ const MyCloset = () => {
                 <Text style={[styles.navText, styles.activeNavText]}>My Closet</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.navItem}
                 onPress={() => {
                   router.push('/events');
@@ -315,12 +337,18 @@ const MyCloset = () => {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.navItem}>
+              <TouchableOpacity
+                style={styles.navItem}
+                onPress={() => {
+                  router.push('/recommendations');
+                  toggleSidebar();
+                }}
+              >
                 <Feather name="star" size={20} color="#6b7280" />
                 <Text style={styles.navText}>Recommendations</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.navItem}
                 onPress={() => {
                   router.push('/profile');
@@ -332,7 +360,6 @@ const MyCloset = () => {
               </TouchableOpacity>
             </View>
 
-            {/* Logout */}
             <TouchableOpacity
               style={styles.logoutButton}
               onPress={handleLogout}
@@ -344,23 +371,21 @@ const MyCloset = () => {
         </View>
       </Modal>
 
-      {/* Main Content */}
       <ScrollView style={styles.mainContent}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>My Closet</Text>
           <Text style={styles.headerSubtitle}>Manage your fashion collection</Text>
         </View>
 
-        {/* Upload Form */}
         <View style={styles.formContainer}>
           <Text style={styles.formTitle}>Add New Item</Text>
-          
+
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
-          
+
           <View style={styles.formGroup}>
             <Text style={styles.label}>Category</Text>
             <View style={styles.pickerContainer}>
@@ -417,7 +442,6 @@ const MyCloset = () => {
           </TouchableOpacity>
         </View>
 
-        {/* Grouped Summary */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Closet Summary</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -434,10 +458,9 @@ const MyCloset = () => {
           </ScrollView>
         </View>
 
-        {/* Items Grouped by Category */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>My Items</Text>
-          
+
           {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#4f46e5" />
@@ -464,7 +487,7 @@ const MyCloset = () => {
                       const itemImageUrl = item.image
                         ? item.image.startsWith('http')
                           ? item.image
-                          : `${BASE_URL}${item.image}`
+                          : `http://192.168.88.66:8000${item.image}`
                         : null;
 
                       return (
@@ -479,12 +502,12 @@ const MyCloset = () => {
                               <Feather name="image" size={32} color="#9ca3af" />
                             </View>
                           )}
-                          
+
                           <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
                           {item.description && (
                             <Text style={styles.itemDescription} numberOfLines={2}>{item.description}</Text>
                           )}
-                          
+
                           <TouchableOpacity
                             style={styles.deleteButton}
                             onPress={() => handleDelete(item.id)}

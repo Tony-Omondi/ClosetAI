@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const Signup: React.FC = () => {
+const Signup = () => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -32,46 +32,57 @@ const Signup: React.FC = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const router = useRouter();
 
-  const handleChange = (name: string, value: string) => {
+  const handleChange = (name, value) => {
     setFormData({ ...formData, [name]: value });
   };
 
   const handleSubmit = async () => {
     setError('');
+    setIsLoading(true);
 
     const { fullName, email, password, confirmPassword, age, gender, location } = formData;
 
     if (!fullName || !email || !password || !confirmPassword || !age || !gender || !location) {
       setError('Please fill in all fields.');
+      setIsLoading(false);
       return;
     }
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
+      setIsLoading(false);
       return;
     }
     if (password.length < 8) {
       setError('Password must be at least 8 characters.');
+      setIsLoading(false);
       return;
     }
     if (parseInt(age) <= 0 || isNaN(parseInt(age))) {
       setError('Age must be a positive number.');
+      setIsLoading(false);
       return;
     }
     if (!termsAccepted) {
       setError('You must accept the terms and conditions.');
+      setIsLoading(false);
       return;
     }
 
     try {
-      setIsLoading(true);
-      const response = await axios.post('http://192.168.88.66:8000/api/auth/signup/', {
+      const BASE_URL = process.env.REACT_NATIVE_API_URL || 'http://192.168.88.66:8000';
+      const response = await axios.post(`${BASE_URL}/api/auth/signup/`, {
         email,
         password,
         profile: { full_name: fullName, age: parseInt(age), gender, location }
       });
+
+      if (response.status !== 200 && response.status !== 201) {
+        throw new Error(response.data?.errors || `Signup failed: ${response.statusText}`);
+      }
+
       router.push({ pathname: '/verify-otp', params: { user_id: response.data.user_id, purpose: 'signup' } });
-    } catch (err: any) {
-      setError(err.response?.data?.errors || 'Signup failed. Please try again.');
+    } catch (err) {
+      setError(err.response?.data?.errors || err.message || 'An error occurred during signup. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -91,7 +102,6 @@ const Signup: React.FC = () => {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.card}>
-          {/* Logo */}
           <View style={styles.logoContainer}>
             <Image 
               source={require('../assets/images/closetai-logo.jpg')} 
@@ -99,19 +109,13 @@ const Signup: React.FC = () => {
               resizeMode="contain"
             />
           </View>
-
-          {/* Title */}
           <Text style={styles.title}>Create Your Account</Text>
           <Text style={styles.subtitle}>Join ClosetAI to organize your wardrobe</Text>
-
-          {/* Error Message */}
           {error ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           ) : null}
-
-          {/* Full Name */}
           <Text style={styles.label}>Full Name</Text>
           <TextInput
             style={styles.input}
@@ -120,8 +124,6 @@ const Signup: React.FC = () => {
             placeholder="Enter your full name"
             placeholderTextColor="#9ca3af"
           />
-
-          {/* Email */}
           <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
@@ -132,8 +134,6 @@ const Signup: React.FC = () => {
             keyboardType="email-address"
             autoCapitalize="none"
           />
-
-          {/* Password */}
           <Text style={styles.label}>Password</Text>
           <TextInput
             style={styles.input}
@@ -144,8 +144,6 @@ const Signup: React.FC = () => {
             secureTextEntry
           />
           <Text style={styles.hintText}>Minimum 8 characters</Text>
-
-          {/* Confirm Password */}
           <Text style={styles.label}>Confirm Password</Text>
           <TextInput
             style={styles.input}
@@ -155,8 +153,6 @@ const Signup: React.FC = () => {
             placeholderTextColor="#9ca3af"
             secureTextEntry
           />
-
-          {/* Age */}
           <Text style={styles.label}>Age</Text>
           <TextInput
             style={styles.input}
@@ -166,8 +162,6 @@ const Signup: React.FC = () => {
             placeholderTextColor="#9ca3af"
             keyboardType="numeric"
           />
-
-          {/* Gender */}
           <Text style={styles.label}>Gender</Text>
           <View style={styles.pickerContainer}>
             <Picker
@@ -181,8 +175,6 @@ const Signup: React.FC = () => {
               <Picker.Item label="Other" value="O" />
             </Picker>
           </View>
-
-          {/* Location */}
           <Text style={styles.label}>Location</Text>
           <TextInput
             style={styles.input}
@@ -191,8 +183,6 @@ const Signup: React.FC = () => {
             placeholder="e.g., Nairobi, Kenya"
             placeholderTextColor="#9ca3af"
           />
-
-          {/* Terms Checkbox */}
           <View style={styles.termsContainer}>
             <TouchableOpacity 
               style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}
@@ -207,8 +197,6 @@ const Signup: React.FC = () => {
               <Text style={styles.linkText} onPress={() => router.push('/privacy')}>Privacy Policy</Text>
             </Text>
           </View>
-
-          {/* Sign Up Button */}
           <TouchableOpacity 
             style={[styles.button, isLoading && styles.buttonDisabled]}
             onPress={handleSubmit}
@@ -220,15 +208,11 @@ const Signup: React.FC = () => {
               <Text style={styles.buttonText}>Sign Up</Text>
             )}
           </TouchableOpacity>
-
-          {/* Divider */}
           <View style={styles.dividerContainer}>
             <View style={styles.dividerLine} />
             <Text style={styles.dividerText}>Or sign up with</Text>
             <View style={styles.dividerLine} />
           </View>
-
-          {/* Google Login */}
           <TouchableOpacity 
             style={styles.googleButton}
             onPress={handleGoogleLogin}
@@ -239,8 +223,6 @@ const Signup: React.FC = () => {
             />
             <Text style={styles.googleButtonText}>Continue with Google</Text>
           </TouchableOpacity>
-
-          {/* Login Link */}
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Already have an account? </Text>
             <TouchableOpacity onPress={() => router.push('/login')}>

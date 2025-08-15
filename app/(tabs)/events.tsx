@@ -4,7 +4,6 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  ScrollView,
   FlatList,
   SafeAreaView,
   Alert,
@@ -15,8 +14,6 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
-const BASE_URL = 'http://192.168.88.66:8000';
 
 export default function Events() {
   const router = useRouter();
@@ -33,32 +30,7 @@ export default function Events() {
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingEvents, setIsFetchingEvents] = useState(true);
 
-  // Fetch CSRF token and events on mount
   useEffect(() => {
-    const fetchCsrfToken = async () => {
-      try {
-        const response = await fetch(`${BASE_URL}/api/auth/get-csrf-token/`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Accept': 'application/json' },
-        });
-        const text = await response.text();
-        console.log('CSRF Token Response Status:', response.status);
-        console.log('CSRF Token Response Text:', text);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${text}`);
-        }
-        const data = JSON.parse(text);
-        if (data.csrfToken) {
-          await AsyncStorage.setItem('csrftoken', data.csrfToken);
-          console.log('CSRF Token Stored:', data.csrfToken);
-        }
-      } catch (err) {
-        console.error('Failed to fetch CSRF token:', err);
-        setError('Failed to initialize. Please try again.');
-      }
-    };
-
     const fetchEvents = async () => {
       try {
         const token = await AsyncStorage.getItem('token');
@@ -67,12 +39,11 @@ export default function Events() {
           router.replace('/login');
           return;
         }
-        const response = await fetch(`${BASE_URL}/api/auth/events/`, {
+        const response = await fetch('http://192.168.88.66:8000/api/auth/events/', {
           headers: {
             Authorization: `Token ${token}`,
             'Accept': 'application/json',
           },
-          credentials: 'include',
         });
         const text = await response.text();
         console.log('Events Response Status:', response.status);
@@ -89,7 +60,6 @@ export default function Events() {
       }
     };
 
-    fetchCsrfToken();
     fetchEvents();
   }, [router]);
 
@@ -114,7 +84,6 @@ export default function Events() {
     setIsLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
-      const csrfToken = await AsyncStorage.getItem('csrftoken');
       if (!token) {
         setError('Please log in to create an event.');
         router.replace('/login');
@@ -122,12 +91,11 @@ export default function Events() {
       }
 
       const formattedDate = eventData.date.toISOString().split('T')[0];
-      const response = await fetch(`${BASE_URL}/api/auth/events/`, {
+      const response = await fetch('http://192.168.88.66:8000/api/auth/events/', {
         method: 'POST',
         headers: {
           Authorization: `Token ${token}`,
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken || '',
           'Accept': 'application/json',
         },
         body: JSON.stringify({
@@ -136,7 +104,6 @@ export default function Events() {
           eventNotes: eventData.eventNotes || null,
           weatherNotes: eventData.weatherNotes || null,
         }),
-        credentials: 'include',
       });
 
       const text = await response.text();
@@ -171,21 +138,18 @@ export default function Events() {
           onPress: async () => {
             try {
               const token = await AsyncStorage.getItem('token');
-              const csrfToken = await AsyncStorage.getItem('csrftoken');
               if (!token) {
                 setError('Please log in to delete an event.');
                 router.replace('/login');
                 return;
               }
 
-              const response = await fetch(`${BASE_URL}/api/auth/events/${eventId}/`, {
+              const response = await fetch(`http://192.168.88.66:8000/api/auth/events/${eventId}/`, {
                 method: 'DELETE',
                 headers: {
                   Authorization: `Token ${token}`,
-                  'X-CSRFToken': csrfToken || '',
                   'Accept': 'application/json',
                 },
-                credentials: 'include',
               });
 
               if (!response.ok) {
@@ -210,140 +174,138 @@ export default function Events() {
     { label: 'Nakuru', value: 'Nakuru' },
   ];
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView style={styles.mainContent}>
-        {/* Create Event Form */}
-        <View style={styles.formContainer}>
-          <View style={styles.formHeader}>
-            <Text style={styles.formTitle}>Plan Your Events</Text>
-            <Text style={styles.formSubtitle}>Create a new event</Text>
-          </View>
-          {error && (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          )}
-          <View style={styles.form}>
-            <View style={styles.formField}>
-              <Text style={styles.label}>Event Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="e.g., Wedding, Birthday Party"
-                value={eventData.name}
-                onChangeText={(value) => handleChange('name', value)}
-                required
-              />
-            </View>
-            <View style={styles.formField}>
-              <Text style={styles.label}>Location</Text>
-              <View style={styles.pickerContainer}>
-                <Picker
-                  selectedValue={eventData.location}
-                  onValueChange={(value) => handleChange('location', value)}
-                  style={styles.picker}
-                >
-                  {locations.map((loc) => (
-                    <Picker.Item key={loc.value} label={loc.label} value={loc.value} />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-            <View style={styles.formField}>
-              <Text style={styles.label}>Date</Text>
-              <TouchableOpacity
-                style={styles.dateInput}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <Text style={styles.dateText}>
-                  {eventData.date.toISOString().split('T')[0]}
-                </Text>
-              </TouchableOpacity>
-              {showDatePicker && (
-                <DateTimePicker
-                  value={eventData.date}
-                  mode="date"
-                  display="default"
-                  onChange={handleDateChange}
-                />
-              )}
-            </View>
-            <View style={styles.formField}>
-              <Text style={styles.label}>Event Notes</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Dress code, theme, or other important details"
-                value={eventData.eventNotes}
-                onChangeText={(value) => handleChange('eventNotes', value)}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-            <View style={styles.formField}>
-              <Text style={styles.label}>Weather Notes</Text>
-              <TextInput
-                style={[styles.input, styles.textArea]}
-                placeholder="Any specific weather considerations?"
-                value={eventData.weatherNotes}
-                onChangeText={(value) => handleChange('weatherNotes', value)}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-            <TouchableOpacity
-              style={[styles.submitButton, isLoading && styles.buttonDisabled]}
-              onPress={handleSubmit}
-              disabled={isLoading}
+  const renderHeader = () => (
+    <View style={styles.formContainer}>
+      <View style={styles.formHeader}>
+        <Text style={styles.formTitle}>Plan Your Events</Text>
+        <Text style={styles.formSubtitle}>Create a new event</Text>
+      </View>
+      {error && (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      )}
+      <View style={styles.form}>
+        <View style={styles.formField}>
+          <Text style={styles.label}>Event Name</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="e.g., Wedding, Birthday Party"
+            value={eventData.name}
+            onChangeText={(value) => handleChange('name', value)}
+            required
+          />
+        </View>
+        <View style={styles.formField}>
+          <Text style={styles.label}>Location</Text>
+          <View style={styles.pickerContainer}>
+            <Picker
+              selectedValue={eventData.location}
+              onValueChange={(value) => handleChange('location', value)}
+              style={styles.picker}
             >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Saving...' : 'Save Event'}
-              </Text>
-              {!isLoading && (
-                <Text style={styles.buttonIcon}>→</Text>
-              )}
-            </TouchableOpacity>
+              {locations.map((loc) => (
+                <Picker.Item key={loc.value} label={loc.label} value={loc.value} />
+              ))}
+            </Picker>
           </View>
         </View>
-
-        {/* Events List */}
-        {isFetchingEvents ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#4f46e5" />
-            <Text style={styles.loadingText}>Loading events...</Text>
-          </View>
-        ) : events.length > 0 ? (
-          <View style={styles.eventsContainer}>
-            <Text style={styles.eventsTitle}>Your Events</Text>
-            <FlatList
-              data={events}
-              keyExtractor={(item) => item.id.toString()}
-              renderItem={({ item }) => (
-                <View style={styles.eventCard}>
-                  <Text style={styles.eventName}>{item.name}</Text>
-                  <Text style={styles.eventDetail}>Location: {item.location}</Text>
-                  <Text style={styles.eventDetail}>Date: {item.date}</Text>
-                  <Text style={styles.eventDetail}>
-                    Event Notes: {item.eventNotes || '-'}
-                  </Text>
-                  <Text style={styles.eventDetail}>
-                    Weather Notes: {item.weatherNotes || '-'}
-                  </Text>
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={() => handleDelete(item.id)}
-                  >
-                    <Text style={styles.deleteButtonText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
+        <View style={styles.formField}>
+          <Text style={styles.label}>Date</Text>
+          <TouchableOpacity
+            style={styles.dateInput}
+            onPress={() => setShowDatePicker(true)}
+          >
+            <Text style={styles.dateText}>
+              {eventData.date.toISOString().split('T')[0]}
+            </Text>
+          </TouchableOpacity>
+          {showDatePicker && (
+            <DateTimePicker
+              value={eventData.date}
+              mode="date"
+              display="default"
+              onChange={handleDateChange}
             />
-          </View>
-        ) : (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No events found. Create one above!</Text>
-          </View>
-        )}
-      </ScrollView>
+          )}
+        </View>
+        <View style={styles.formField}>
+          <Text style={styles.label}>Event Notes</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Dress code, theme, or other important details"
+            value={eventData.eventNotes}
+            onChangeText={(value) => handleChange('eventNotes', value)}
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+        <View style={styles.formField}>
+          <Text style={styles.label}>Weather Notes</Text>
+          <TextInput
+            style={[styles.input, styles.textArea]}
+            placeholder="Any specific weather considerations?"
+            value={eventData.weatherNotes}
+            onChangeText={(value) => handleChange('weatherNotes', value)}
+            multiline
+            numberOfLines={3}
+          />
+        </View>
+        <TouchableOpacity
+          style={[styles.submitButton, isLoading && styles.buttonDisabled]}
+          onPress={handleSubmit}
+          disabled={isLoading}
+        >
+          <Text style={styles.buttonText}>
+            {isLoading ? 'Saving...' : 'Save Event'}
+          </Text>
+          {!isLoading && (
+            <Text style={styles.buttonIcon}>→</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {isFetchingEvents ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#4f46e5" />
+          <Text style={styles.loadingText}>Loading events...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={events}
+          keyExtractor={(item) => item.id.toString()}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No events found. Create one above!</Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <View style={styles.eventCard}>
+              <Text style={styles.eventName}>{item.name}</Text>
+              <Text style={styles.eventDetail}>Location: {item.location}</Text>
+              <Text style={styles.eventDetail}>Date: {item.date}</Text>
+              <Text style={styles.eventDetail}>
+                Event Notes: {item.eventNotes || '-'}
+              </Text>
+              <Text style={styles.eventDetail}>
+                Weather Notes: {item.weatherNotes || '-'}
+              </Text>
+              <TouchableOpacity
+                style={styles.deleteButton}
+                onPress={() => handleDelete(item.id)}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          contentContainerStyle={styles.mainContent}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -354,7 +316,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f9fafb',
   },
   mainContent: {
-    flex: 1,
     padding: 16,
   },
   formContainer: {
@@ -460,22 +421,14 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   loadingContainer: {
+    flex: 1,
     alignItems: 'center',
-    padding: 24,
+    justifyContent: 'center',
   },
   loadingText: {
     fontSize: 14,
     color: '#4b5563',
     marginTop: 8,
-  },
-  eventsContainer: {
-    marginBottom: 24,
-  },
-  eventsTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 16,
   },
   eventCard: {
     backgroundColor: '#fff',

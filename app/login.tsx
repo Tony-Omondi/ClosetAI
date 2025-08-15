@@ -13,34 +13,38 @@ export default function Login() {
 
   useEffect(() => {
     if (params?.error) {
-      setError(params.error as string);
+      setError(params.error);
     }
   }, [params]);
 
   const handleSubmit = async () => {
     setError('');
+    setIsLoading(true);
 
     if (!email || !password) {
       setError('Please fill in all fields.');
+      setIsLoading(false);
       return;
     }
 
     try {
-      setIsLoading(true);
       const response = await fetch('http://192.168.88.66:8000/api/auth/login/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error(data.errors || 'Login failed. Please try again.');
+        const data = await response.json();
+        throw new Error(data.errors || `Login failed: ${response.statusText}`);
       }
+
+      const data = await response.json();
       await AsyncStorage.setItem('token', data.token);
       await AsyncStorage.setItem('user', JSON.stringify(data.user));
       router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Login failed. Please try again.');
+    } catch (err) {
+      setError(err.message || 'An error occurred during login. Please try again.');
     } finally {
       setIsLoading(false);
     }

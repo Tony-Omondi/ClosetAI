@@ -15,7 +15,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
 
-const BASE_URL = 'http://192.168.88.66:8000';
+const BASE_URL = process.env.REACT_NATIVE_API_URL || 'http://192.168.88.66:8000';
 
 export default function Recommendations() {
   const [events, setEvents] = useState([]);
@@ -29,29 +29,6 @@ export default function Recommendations() {
   const params = useLocalSearchParams();
 
   useEffect(() => {
-    const fetchCsrfToken = async () => {
-      try {
-        const response = await fetch(`${BASE_URL}/api/auth/get-csrf-token/`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: { 'Accept': 'application/json' },
-        });
-        const text = await response.text();
-        console.log('CSRF Token Response Status:', response.status);
-        console.log('CSRF Token Response Text:', text);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${text}`);
-        }
-        const data = JSON.parse(text);
-        if (data.csrfToken) {
-          await AsyncStorage.setItem('csrftoken', data.csrfToken);
-        }
-      } catch (err) {
-        console.error('Failed to fetch CSRF token:', err);
-        setError('Failed to initialize. Please try again.');
-      }
-    };
-
     const fetchProfileAndEvents = async () => {
       try {
         const token = await AsyncStorage.getItem('token');
@@ -66,9 +43,9 @@ export default function Recommendations() {
         };
 
         const [profileResponse, eventsResponse, recommendationsResponse] = await Promise.all([
-          fetch(`${BASE_URL}/api/auth/profile/`, { headers, credentials: 'include' }),
-          fetch(`${BASE_URL}/api/auth/events/`, { headers, credentials: 'include' }),
-          fetch(`${BASE_URL}/api/auth/recommendations/`, { headers, credentials: 'include' }),
+          fetch(`${BASE_URL}/api/auth/profile/`, { headers }),
+          fetch(`${BASE_URL}/api/auth/events/`, { headers }),
+          fetch(`${BASE_URL}/api/auth/recommendations/`, { headers }),
         ]);
 
         if (!profileResponse.ok || !eventsResponse.ok || !recommendationsResponse.ok) {
@@ -88,7 +65,6 @@ export default function Recommendations() {
       }
     };
 
-    fetchCsrfToken();
     fetchProfileAndEvents();
   }, []);
 
@@ -101,7 +77,6 @@ export default function Recommendations() {
     setIsLoading(true);
     try {
       const token = await AsyncStorage.getItem('token');
-      const csrfToken = await AsyncStorage.getItem('csrftoken');
       if (!token) {
         throw new Error('No token found. Please log in.');
       }
@@ -111,11 +86,9 @@ export default function Recommendations() {
         headers: {
           Authorization: `Token ${token}`,
           'Content-Type': 'application/json',
-          'X-CSRFToken': csrfToken || '',
           'Accept': 'application/json',
         },
         body: JSON.stringify({ event_id: selectedEvent }),
-        credentials: 'include',
       });
 
       const text = await response.text();
@@ -140,7 +113,6 @@ export default function Recommendations() {
   const handleDelete = async (id) => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const csrfToken = await AsyncStorage.getItem('csrftoken');
       if (!token) {
         throw new Error('No token found. Please log in.');
       }
@@ -149,10 +121,8 @@ export default function Recommendations() {
         method: 'DELETE',
         headers: {
           Authorization: `Token ${token}`,
-          'X-CSRFToken': csrfToken || '',
           'Accept': 'application/json',
         },
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -168,21 +138,17 @@ export default function Recommendations() {
   const handleLogout = async () => {
     try {
       const token = await AsyncStorage.getItem('token');
-      const csrfToken = await AsyncStorage.getItem('csrftoken');
       if (token) {
         await fetch(`${BASE_URL}/api/auth/logout/`, {
           method: 'POST',
           headers: {
             Authorization: `Token ${token}`,
-            'X-CSRFToken': csrfToken || '',
             'Accept': 'application/json',
           },
-          credentials: 'include',
         });
       }
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('csrftoken');
       router.replace('/login');
     } catch (err) {
       console.error('Logout failed:', err);
@@ -202,7 +168,6 @@ export default function Recommendations() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Sidebar Toggle Button */}
       <TouchableOpacity
         style={[styles.sidebarToggle, isSidebarOpen && styles.sidebarToggleOpen]}
         onPress={toggleSidebar}
@@ -210,7 +175,6 @@ export default function Recommendations() {
         <Text style={styles.sidebarToggleIcon}>{isSidebarOpen ? '✕' : '☰'}</Text>
       </TouchableOpacity>
 
-      {/* Sidebar Modal */}
       <Modal
         visible={isSidebarOpen}
         animationType="slide"
@@ -219,7 +183,6 @@ export default function Recommendations() {
       >
         <View style={styles.sidebarOverlay}>
           <View style={styles.sidebar}>
-            {/* Logo */}
             <View style={styles.logoContainer}>
               <Image
                 source={require('../../assets/images/closetai-logo.jpg')}
@@ -227,8 +190,6 @@ export default function Recommendations() {
                 resizeMode="contain"
               />
             </View>
-
-            {/* User Profile */}
             <View style={styles.profileContainer}>
               {profilePictureUrl ? (
                 <Image
@@ -251,8 +212,6 @@ export default function Recommendations() {
                 </TouchableOpacity>
               </View>
             </View>
-
-            {/* Navigation */}
             <View style={styles.navContainer}>
               <TouchableOpacity
                 style={styles.navItem}
@@ -287,8 +246,6 @@ export default function Recommendations() {
                 <Text style={styles.navText}>Profile</Text>
               </TouchableOpacity>
             </View>
-
-            {/* Logout */}
             <TouchableOpacity
               style={[styles.navItem, styles.logoutButton]}
               onPress={handleLogout}
@@ -299,7 +256,6 @@ export default function Recommendations() {
         </View>
       </Modal>
 
-      {/* Main Content */}
       <ScrollView style={styles.mainContent}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Outfit Recommendations</Text>
@@ -307,8 +263,6 @@ export default function Recommendations() {
             Get AI-powered outfit suggestions for your events
           </Text>
         </View>
-
-        {/* Generate Recommendation Form */}
         <View style={styles.formContainer}>
           <Text style={styles.formTitle}>Generate New Recommendation</Text>
           {error && (
@@ -345,8 +299,6 @@ export default function Recommendations() {
             </Text>
           </TouchableOpacity>
         </View>
-
-        {/* Recommendations List */}
         <View style={styles.recommendationsContainer}>
           <Text style={styles.recommendationsTitle}>Your Recommendations</Text>
           {isLoading ? (
